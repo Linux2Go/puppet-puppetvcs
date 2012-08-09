@@ -1,0 +1,33 @@
+#!/bin/bash
+
+basedir="${basedir:-/etc/puppet}"
+remote="${remote:-origin}"
+branch="${branch:-master}"
+
+if [ ! -e "${basedir}/.git" ]
+then
+    exit 0
+fi
+
+if [ -e "${basedir}/nopull" ]
+then
+    echo "${basedir}/nopull exists. Bailing out."
+    exit 0
+fi
+
+cd "${basedir}"
+
+if [ -n "${ssh_key}" ]
+then
+    tmpfile=$(mktemp)
+    trap "rm $tmpfile" EXIT ERR
+    echo '#!/bin/sh' >> $tmpfile
+    echo "exec ssh -oStrictHostKeyChecking=no -oPasswordAuthentication=no -oKbdInteractiveAuthentication=no -oChallengeResponseAuthentication=no -i ${ssh_key} \$*" >> $tmpfile
+    chmod 755 "$tmpfile"
+    export GIT_SSH="$tmpfile"
+fi
+
+git fetch ${remote}
+git reset --hard ${remote}/${branch}
+git submodule sync
+git submodule update
